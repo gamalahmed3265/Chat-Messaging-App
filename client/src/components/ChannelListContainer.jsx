@@ -40,6 +40,7 @@ const ChannelListContainer = () => {
             cookies.remove('phonenum');
             cookies.remove('avatarurl');
             cookies.remove('hashePassword');
+            cookies.remove('token');
 
             window.location.reload();
     }
