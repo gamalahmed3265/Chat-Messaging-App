@@ -1,80 +1,59 @@
-const {connect} =require("getstream");
-const bcrypt=require("bcrypt");
-const streamChat=require("stream-chat").StreamChat;
-const crypto=require("crypto");
+const { connect } = require('getstream');
+const bcrypt = require('bcrypt');
+const StreamChat = require('stream-chat').StreamChat;
+const crypto = require('crypto');
 
-require("dotenv").config();
+require('dotenv').config();
 
-api_key=process.env.STREAM_API_KEY;
-api_secret=process.env.STREAM_API_SECRET;
-app_id=process.env.STREAM_APP_ID;
-const signup = async(req, res) => {
+const api_key = process.env.STREAM_API_KEY;
+const api_secret = process.env.STREAM_API_SECRET;
+const app_id = process.env.STREAM_APP_ID;
+
+const signup = async (req, res) => {
     try {
-        const {
-            fullname,
-            username,
-            phonenum,
-            avatarurl,
-            password
+        const { fullName, username, password, phoneNumber } = req.body;
 
-        } = req.body;
-        const userId=crypto.randomBytes(16).toString("hex");
-        
-        const serverClient=connect(api_key,api_secret,app_id);
-        
-        const hashePassword=await bcrypt.hash(password,10);
-        // console.log(hashePassword);
+        const userId = crypto.randomBytes(16).toString('hex');
 
-        const token=serverClient.createUserToken(userId);
+        const serverClient = connect(api_key, api_secret, app_id);
 
-        res.status(200).json({
-            token,
-            fullname,
-            username,
-            userId,
-            hashePassword,
-            phonenum,
-        });
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const token = serverClient.createUserToken(userId);
+
+        res.status(200).json({ token, fullName, username, userId, hashedPassword, phoneNumber });
     } catch (error) {
-        res.status(500).json({ message: error })
+        console.log(error);
+
+        res.status(500).json({ message: error });
     }
 };
 
-const login =async (req, res) => {
+const login = async (req, res) => {
     try {
-        const {
-            username,
-            password,
+        const { username, password } = req.body;
+        
+        const serverClient = connect(api_key, api_secret, app_id);
+        const client = StreamChat.getInstance(api_key, api_secret);
 
-        } = req.body;
+        const { users } = await client.queryUsers({ name: username });
 
-        const serverClient=connect(api_key,api_secret,app_id);
+        if(!users.length) return res.status(400).json({ message: 'User not found' });
 
-        const client=streamChat.getInstance(api_key,api_secret);
+        const success = await bcrypt.compare(password, users[0].hashedPassword);
 
-        const {users}=await client.quaryUsers({name: username});
+        const token = serverClient.createUserToken(users[0].id);
 
-        if(!users.length) return res.status(400).json({
-            message:"the user not found"
-        })
-        const success=await bcrypt.compare(password,users[0].hashePassword);
-
-        const token=serverClient.createUserToken(users[0].id);
-
-        if(success){
-            res.status(200).json({token,
-                fullname:users[0].fullname,
-                username:users[0].id
-            });
-        }else{
-            res.status(500).json({
-                message:"Incorrect password"
-            });
+        if(success) {
+            res.status(200).json({ token, fullName: users[0].fullName, username, userId: users[0].id});
+        } else {
+            res.status(500).json({ message: 'Incorrect password' });
         }
+    } catch (error) {ads
+        console.log(error);
 
-    } catch (error) {
-        res.status(500).json({ message: error })
+        res.status(500).json({ message: error });
     }
 };
 
-module.exports = { signup, login };
+module.exports = { signup, login }
